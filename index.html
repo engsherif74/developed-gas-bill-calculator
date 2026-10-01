@@ -944,7 +944,6 @@ function showResult(r){
   const isSinglePeriod = (r.rows.length === 1);
   const isSingleMonth = (r.months === 1);
 
-  // بناء ملخص المدخلات (يظهر دائماً في الرأس العلوي للمودال)
   let inputsRowsHtml = '';
   if (r.inputMode === 'readings'){
     inputsRowsHtml = `
@@ -984,7 +983,6 @@ function showResult(r){
       ${inputsRowsHtml}
     </div>`;
 
-  // بناء التفاصيل (تبقى مخفية حتى يضغط المستخدم على الزر)
   let detailsHtml = '';
 
   if (!isSinglePeriod){
@@ -1003,14 +1001,6 @@ function showResult(r){
         const arabicNumName = ArabicPeriodNames[idx + 1] || (idx + 1);
         periodLabel = `الفترة ${arabicNumName}:`;
       }
-    }
-
-    let centerItem = '';
-    if (row.months > 1){
-      centerItem = `
-        <span class="period-header-center">
-          <span class="avg-val">${smartFmt(row.avg)} m³</span>
-        </span>`;
     }
 
     let tableRowsHtml = '';
@@ -1288,6 +1278,17 @@ function setLanguage(lang){
     });
   }
 });
+
+/* ============================================================
+   تسجيل الـ Service Worker
+============================================================ */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => console.log('Service Worker registered successfully:', reg.scope))
+      .catch(err => console.log('Service Worker registration failed:', err));
+  });
+}
 
 /* ============================================================
    التشغيل الأولي
