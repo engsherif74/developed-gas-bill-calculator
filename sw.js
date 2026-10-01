@@ -2,7 +2,7 @@
    Service Worker - حاسبة فاتورة الغاز
    ============================================================ */
 
-const CACHE_NAME = 'gas-calculator-v1.0.0';
+const CACHE_NAME = 'gas-calculator-v1.1.0';
 const CACHE_ASSETS = [
   './',
   './index.html',
@@ -10,22 +10,22 @@ const CACHE_ASSETS = [
   './app-icon.png'
 ];
 
-/* ===== Install ===== */
+/* ===== Install: تخزين ملفات التطبيق ===== */
 self.addEventListener('install', (event) => {
-  console.log('[SW] Installing...');
+  console.log('[SW] Installing Service Worker...');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('[SW] Caching app shell');
+        console.log('[SW] Caching app shell assets');
         return cache.addAll(CACHE_ASSETS);
       })
       .then(() => self.skipWaiting())
   );
 });
 
-/* ===== Activate ===== */
+/* ===== Activate: تنظيف الكاش القديم ===== */
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activating...');
+  console.log('[SW] Activating Service Worker...');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
@@ -40,7 +40,7 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-/* ===== Fetch ===== */
+/* ===== Fetch: استراتيجية الاستجابة (Network First with Cache Fallback) ===== */
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
@@ -50,40 +50,30 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request)
       .then((cachedResponse) => {
-        if (cachedResponse) {
-          fetch(event.request)
-            .then((networkResponse) => {
-              if (networkResponse && networkResponse.status === 200) {
-                caches.open(CACHE_NAME).then((cache) => {
-                  cache.put(event.request, networkResponse.clone());
-                });
-              }
-            })
-            .catch(() => {});
-          return cachedResponse;
-        }
-
-        return fetch(event.request)
+        const fetchPromise = fetch(event.request)
           .then((networkResponse) => {
-            if (!networkResponse || networkResponse.status !== 200) {
-              return networkResponse;
+            if (networkResponse && networkResponse.status === 200) {
+              const responseToCache = networkResponse.clone();
+              caches.open(CACHE_NAME).then((cache) => {
+                cache.put(event.request, responseToCache);
+              });
             }
-            const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
             return networkResponse;
           })
           .catch(() => {
+            // في حالة انقطاع الإنترنت وعدم توفر الشبكة
+            if (cachedResponse) return cachedResponse;
             if (event.request.mode === 'navigate') {
               return caches.match('./index.html');
             }
           });
+
+        return cachedResponse || fetchPromise;
       })
   );
 });
 
-/* ===== Messages ===== */
+/* ===== Messages: استقبال الأوامر من الصفحة الرئيسية ===== */
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
